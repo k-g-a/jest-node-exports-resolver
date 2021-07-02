@@ -24,7 +24,7 @@ module.exports = (request, options) => {
     try {
       pkg = require(`${pkgName}/package.json`);
     } catch (e) {
-      console.log(`Error while trying to get ${pkgName}'s package.json`);
+      console.log(`Error while trying to get ${pkgName}'s package.json:`);
       console.error(e);
     }
 
@@ -33,7 +33,6 @@ module.exports = (request, options) => {
       pkg.exports &&
       Object.keys(pkg.exports).every((k) => k.startsWith("."))
     ) {
-      console.log('[index.js]', 'exports');
       const exportValue = pkg.exports[submoduleName];
 
       let targetFilePath;

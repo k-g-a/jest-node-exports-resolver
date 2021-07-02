@@ -1,6 +1,6 @@
 {
   "name": "jest-node-exports-resolver",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Jest resolver to handle node's 'exports' package entry points.",
   "main": "index.js",
   "repository": "https://github.com/k-g-a/jest-node-exports-resolver.git",
