@@ -1,7 +1,14 @@
 {
   "name": "jest-node-exports-resolver",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Jest resolver to handle node's 'exports' package entry points.",
+  "keywords": [
+    "jest",
+    "resolver",
+    "node",
+    "exports",
+    "multiple-entries"
+  ],
   "main": "index.js",
   "repository": "https://github.com/k-g-a/jest-node-exports-resolver.git",
   "author": "Gleb Kochergin <k-g-a@users.noreply.github.com>",
