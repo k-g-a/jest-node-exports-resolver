@@ -42,7 +42,7 @@ module.exports = (request, options) => {
   }
 
   const extension = path.extname(submoduleName);
-  if (packageName && submoduleName && !extension) {
+  if (packageName && submoduleName) {
     let packageJson = undefined;
 
     try {
