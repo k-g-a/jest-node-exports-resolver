@@ -12,6 +12,9 @@
   "main": "index.js",
   "repository": "https://github.com/k-g-a/jest-node-exports-resolver.git",
   "author": "Gleb Kochergin <k-g-a@users.noreply.github.com>",
+  "contributors": [
+    "Jesús Leganés-Combarro 'piranna' <jesus.leganes.combarro@gmail.com>"
+  ],
   "license": "MIT",
   "private": false,
   "files": [
