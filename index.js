@@ -38,39 +38,39 @@ function getSelfReferencePath(packageName) {
 }
 
 function getPackageJson(packageName) {
-  let packageJson = undefined;
-
   try {
-    packageJson = require(`${packageName}/package.json`);
+    return require(`${packageName}/package.json`);
   } catch (requireError) {
-    if (requireError.code === "ERR_PACKAGE_PATH_NOT_EXPORTED") {
-      // modules's package.json does not provide the "./package.json" path at it's "exports" field
-      // try to resolve manually
-      try {
-        const requestPath = require.resolve(packageName);
-        packageJson =
-          requestPath && findMainPackageJson(requestPath, packageName);
-      } catch (resolveError) {
-        if (resolveError.code === "ERR_PACKAGE_PATH_NOT_EXPORTED") {
-          console.warn(
-            `Could not retrieve package.json neither through require (package.json itself is not within "exports" field), nor through require.resolve (package.json does not specify "main" field) - falling back to default resolver logic`
-          );
-        } else {
-          console.log(
-            `Unexpected error while performing require.resolve(${packageName}):`
-          );
-          console.error(resolveError);
-          return null;
-        }
-      }
-    } else {
+    if (requireError.code !== "ERR_PACKAGE_PATH_NOT_EXPORTED") {
       console.log(`Unexpected error while requiring ${packageName}:`);
-      console.error(requireError);
-      return null;
+
+      return console.error(requireError);
     }
   }
 
-  return packageJson
+  // modules's `package.json` does not provide the "./package.json" path at it's
+  // "exports" field. Try to resolve manually
+  try {
+    // TODO: add support for both no `main` field and no `default` export
+    const requestPath = require.resolve(packageName);
+
+    return requestPath && findMainPackageJson(requestPath, packageName);
+  } catch (resolveError) {
+    if (resolveError.code !== "ERR_PACKAGE_PATH_NOT_EXPORTED") {
+      console.log(
+        `Unexpected error while performing require.resolve(${packageName}):`
+      );
+
+      return console.error(resolveError);
+    }
+  }
+
+  console.warn(
+    'Could not retrieve package.json neither through require (package.json ' +
+    'itself is not within "exports" field), nor through require.resolve ' +
+    '(package.json does not specify "main" field) - falling back to default ' +
+    'resolver logic'
+  );
 }
 
 module.exports = (request, options) => {
@@ -109,7 +109,7 @@ module.exports = (request, options) => {
       console.error(`Failed to find package.json for ${packageName}`);
     }
 
-    const {exports, type} = packageJson || {};
+    const {exports} = packageJson || {};
     if(exports)
     {
       let targetFilePath;
