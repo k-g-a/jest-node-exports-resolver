@@ -20,6 +20,59 @@ function findMainPackageJson(entryPath, packageName) {
   return null;
 }
 
+function getSelfReferencePath(packageName) {
+  let parentDirectoryName = __dirname;
+  let directoryName
+
+  while (directoryName !== parentDirectoryName) {
+    directoryName = parentDirectoryName;
+
+    try {
+      const {name} = require(path.resolve(directoryName, "package.json"));
+
+      if (name === packageName) return directoryName;
+    } catch {}
+
+    parentDirectoryName = path.resolve(directoryName, "..");
+  }
+}
+
+function getPackageJson(packageName) {
+  try {
+    return require(`${packageName}/package.json`);
+  } catch (requireError) {
+    if (requireError.code !== "ERR_PACKAGE_PATH_NOT_EXPORTED") {
+      console.log(`Unexpected error while requiring ${packageName}:`);
+
+      return console.error(requireError);
+    }
+  }
+
+  // modules's `package.json` does not provide the "./package.json" path at it's
+  // "exports" field. Try to resolve manually
+  try {
+    // TODO: add support for both no `main` field and no `default` export
+    const requestPath = require.resolve(packageName);
+
+    return requestPath && findMainPackageJson(requestPath, packageName);
+  } catch (resolveError) {
+    if (resolveError.code !== "ERR_PACKAGE_PATH_NOT_EXPORTED") {
+      console.log(
+        `Unexpected error while performing require.resolve(${packageName}):`
+      );
+
+      return console.error(resolveError);
+    }
+  }
+
+  console.warn(
+    'Could not retrieve package.json neither through require (package.json ' +
+    'itself is not within "exports" field), nor through require.resolve ' +
+    '(package.json does not specify "main" field) - falling back to default ' +
+    'resolver logic'
+  );
+}
+
 module.exports = (request, options) => {
   let packageName = "";
   let submoduleName = "";
@@ -32,79 +85,120 @@ module.exports = (request, options) => {
 
   if (isNodeModuleRequest) {
     const pkgPathParts = request.split("/");
-    if (request.startsWith("@") && pkgPathParts.length > 2) {
-      packageName = pkgPathParts.slice(0, 2).join("/");
-      submoduleName = `./${pkgPathParts.slice(2).join("/")}`;
-    } else if (!request.startsWith("@") && pkgPathParts.length > 1) {
-      packageName = pkgPathParts[0];
-      submoduleName = `./${pkgPathParts.slice(1).join("/")}`;
+    const {length} = pkgPathParts;
+    if(length > 1)
+    {
+      if (request.startsWith("@")) {
+        packageName = pkgPathParts.slice(0, 2).join("/");
+        submoduleName = length === 2
+          ? '.' : `./${pkgPathParts.slice(2).join("/")}`;
+      } else {
+        packageName = pkgPathParts[0];
+        submoduleName = `./${pkgPathParts.slice(1).join("/")}`;
+      }
     }
   }
 
-  const extension = path.extname(submoduleName);
   if (packageName && submoduleName) {
-    let packageJson = undefined;
+    const selfReferencePath = getSelfReferencePath(packageName);
+    if(selfReferencePath) packageName = selfReferencePath
 
-    try {
-      packageJson = require(`${packageName}/package.json`);
-    } catch (requireError) {
-      if (requireError.code === "ERR_PACKAGE_PATH_NOT_EXPORTED") {
-        // modules's package.json does not provide the "./package.json" path at it's "exports" field
-        // try to resolve manually
-        try {
-          const requestPath = require.resolve(packageName);
-          packageJson =
-            requestPath && findMainPackageJson(requestPath, packageName);
-        } catch (resolveError) {
-          if (resolveError.code === "ERR_PACKAGE_PATH_NOT_EXPORTED") {
-            console.warn(
-              `Could not retrieve package.json neither through require (package.json itself is not within "exports" field), nor through require.resolve (package.json does not specify "main" field) - falling back to default resolver logic`
-            );
-          } else {
-            console.log(
-              `Unexpected error while performing require.resolve(${packageName}):`
-            );
-            console.error(resolveError);
-            return null;
-          }
-        }
-      } else {
-        console.log(`Unexpected error while requiring ${packageName}:`);
-        console.error(requireError);
-        return null;
-      }
-    }
+    const packageJson = getPackageJson(packageName);
 
     if (!packageJson) {
       console.error(`Failed to find package.json for ${packageName}`);
     }
 
-    const hasExports = packageJson && packageJson.exports;
-    const isEntryPointsExports =
-      hasExports &&
-      Object.keys(packageJson.exports).every((k) => k.startsWith("."));
-
-    if (hasExports && isEntryPointsExports) {
-      const exportValue = packageJson.exports[submoduleName];
-
+    const {exports} = packageJson || {};
+    if(exports)
+    {
       let targetFilePath;
-      if (typeof exportValue === "string") {
-        targetFilePath = exportValue;
-      } else if (exportValue !== null && typeof exportValue === "object") {
-        targetFilePath = exportValue.node;
 
-        if (!targetFilePath) {
-          targetFilePath = exportValue.require;
-        }
+      if(typeof exports === "string")
+        targetFilePath = exports;
 
-        if (!targetFilePath && packageJson.type !== "module") {
-          targetFilePath = exportValue.default;
-        }
+      else if (Object.keys(exports).every((k) => k.startsWith("."))) {
+        const exportValue = exports[submoduleName];
+
+        if (typeof exportValue === "string")
+          targetFilePath = exportValue;
+
+        else if (exportValue !== null && typeof exportValue === "object")
+          for(const [key, value] of Object.entries(exportValue))
+          {
+            if (key === "import" || key === "require") {
+              if (typeof value === "string")
+                targetFilePath = value;
+              else
+              for(const [key2, value2] of Object.entries(value))
+              {
+                if(key2 === "node"
+                || key2 === "node-addons"
+                || key2 === "default") {
+                  targetFilePath = value2;
+                  break
+                }
+              }
+
+              break
+            }
+
+            if (key === "node") {
+              if (typeof value === "string")
+                targetFilePath = value;
+              else
+                for(const [key2, value2] of Object.entries(value))
+                {
+                  if(key2 === "import"
+                  || key2 === "require"
+                  || key2 === "node-addons"
+                  || key2 === "default") {
+                    targetFilePath = value2;
+                    break
+                  }
+                }
+
+              break
+            }
+
+            if (key === "node-addons") {
+              if (typeof value === "string")
+                targetFilePath = value;
+              else
+                for(const [key2, value2] of Object.entries(value))
+                {
+                  if(key2 === "import"
+                  || key2 === "require"
+                  || key2 === "node"
+                  || key2 === "default") {
+                    targetFilePath = value2;
+                    break
+                  }
+                }
+
+              break
+            }
+
+            if (key === "default") {
+              if (typeof value === "string")
+                targetFilePath = value;
+              else
+                for(const [key2, value2] of Object.entries(value))
+                  if(key2 === "import"
+                  || key2 === "require"
+                  || key2 === "node"
+                  || key2 === "node-addons") {
+                    targetFilePath = value2;
+                    break
+                  }
+
+              break
+            }
+          }
       }
 
       if (targetFilePath) {
-        const target = targetFilePath.replace("./", `${packageName}/`);
-        return options.defaultResolver(target, options);
+        request = targetFilePath.replace("./", `${packageName}/`);
       }
     }
   }
