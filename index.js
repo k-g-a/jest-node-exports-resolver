@@ -96,16 +96,16 @@ module.exports = (request, options) => {
   if (isNodeModuleRequest) {
     const pkgPathParts = request.split("/");
     const {length} = pkgPathParts;
-    if(length > 1)
-    {
-      if (request.startsWith("@")) {
-        packageName = pkgPathParts.slice(0, 2).join("/");
-        submoduleName = length === 2
-          ? '.' : `./${pkgPathParts.slice(2).join("/")}`;
-      } else {
+
+    if (!request.startsWith("@")) {
+      if(length > 1)
+      {
         packageName = pkgPathParts[0];
         submoduleName = `./${pkgPathParts.slice(1).join("/")}`;
       }
+    } else if (length > 2) {
+      packageName = pkgPathParts.slice(0, 2).join("/");
+      submoduleName = `./${pkgPathParts.slice(2).join("/")}`;
     }
   }
 
