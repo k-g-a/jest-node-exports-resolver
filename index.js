@@ -51,7 +51,6 @@ function getPackageJson(packageName) {
   // modules's `package.json` does not provide the "./package.json" path at it's
   // "exports" field. Try to resolve manually
   try {
-    // TODO: add support for both no `main` field and no `default` export
     const requestPath = require.resolve(packageName);
 
     return requestPath && findMainPackageJson(requestPath, packageName);
@@ -63,6 +62,13 @@ function getPackageJson(packageName) {
 
       return console.error(resolveError);
     }
+  }
+
+  // modules's `package.json` does not provide a package level export nor main
+  // field. Try to find the package manually from `node_modules` folder.
+  const suspect = path.resolve(__dirname, "..", packageName, "package.json");
+  if (fs.existsSync(suspect)) {
+    return JSON.parse(fs.readFileSync(suspect).toString());
   }
 
   console.warn(
