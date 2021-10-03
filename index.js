@@ -44,11 +44,10 @@ function getPackageJson(packageName) {
   try {
     return require(`${packageName}/package.json`);
   } catch (requireError) {
-    if (requireError.code !== "ERR_PACKAGE_PATH_NOT_EXPORTED") {
-      console.log(`Unexpected error while requiring ${packageName}:`);
-
-      return console.error(requireError);
-    }
+    if (requireError.code !== "ERR_PACKAGE_PATH_NOT_EXPORTED")
+      return console.error(
+        `Unexpected error while requiring ${packageName}:`, requireError
+      );
   }
 
   // modules's `package.json` does not provide the "./package.json" path at it's
@@ -89,9 +88,11 @@ module.exports = (request, options) => {
 
   // NOTE: jest-sequencer is a special prefixed jest request
   const isNodeModuleRequest =
-    !request.startsWith(".") &&
-    !request.startsWith("/") &&
-    !request.startsWith("jest-sequencer");
+  !(
+    request.startsWith(".") ||
+    request.startsWith("/") ||
+    request.startsWith("jest-sequencer")
+  );
 
   if (isNodeModuleRequest) {
     const pkgPathParts = request.split("/");
