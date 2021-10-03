@@ -3,12 +3,13 @@ const path = require("path");
 
 function findMainPackageJson(entryPath, packageName) {
   entryPath = entryPath.replace(/\//g, path.sep);
+
   let directoryName = path.dirname(entryPath);
   while (directoryName && !directoryName.endsWith(packageName)) {
     const parentDirectoryName = path.resolve(directoryName, "..");
-    if (parentDirectoryName === directoryName) {
-      break;
-    }
+
+    if (parentDirectoryName === directoryName) break;
+
     directoryName = parentDirectoryName;
   }
 
