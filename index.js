@@ -38,6 +38,8 @@ function getSelfReferencePath(packageName) {
 }
 
 function getPackageJson(packageName) {
+  // Require `package.json` from the package, both from exported `exports` field
+  // in ESM packages, or directly from the file itself in CommonJS packages.
   try {
     return require(`${packageName}/package.json`);
   } catch (requireError) {
@@ -49,7 +51,8 @@ function getPackageJson(packageName) {
   }
 
   // modules's `package.json` does not provide the "./package.json" path at it's
-  // "exports" field. Try to resolve manually
+  // "exports" field. Get package level export or main field and try to resolve
+  // the package.json from it.
   try {
     const requestPath = require.resolve(packageName);
 
