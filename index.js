@@ -129,10 +129,17 @@ module.exports = (request, options) => {
         targetFilePath = exports;
 
       else if (Object.keys(exports).every((k) => k.startsWith("."))) {
-        const exportValue = exports[submoduleName];
+        const [exportKey, exportValue] = Object.entries(exports).find(([k]) => {
+          if (k === submoduleName) return true;
+          if (k.endsWith('*')) return submoduleName.startsWith(k.slice(0, -1));
+
+          return false;
+        }) || [];
 
         if (typeof exportValue === "string")
-          targetFilePath = exportValue;
+          targetFilePath = exportKey.endsWith('*')
+            ? exportValue.replace(/\*/, submoduleName.slice(exportKey.length - 1))
+            : exportValue;
 
         else if (exportValue !== null && typeof exportValue === "object")
           for(const [key, value] of Object.entries(exportValue))
