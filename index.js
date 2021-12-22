@@ -86,6 +86,8 @@ module.exports = (request, options) => {
   let packageName = "";
   let submoduleName = "";
 
+  const conditions = options.conditions || ["require", "import", "default"];
+
   // NOTE: jest-sequencer is a special prefixed jest request
   const isNodeModuleRequest =
   !(
@@ -144,7 +146,7 @@ module.exports = (request, options) => {
         else if (exportValue !== null && typeof exportValue === "object")
           for(const [key, value] of Object.entries(exportValue))
           {
-            if (key === "import" || key === "require") {
+            if (conditions.indexOf(key) !== -1) {
               if (typeof value === "string")
                 targetFilePath = value;
               else
@@ -167,10 +169,8 @@ module.exports = (request, options) => {
               else
                 for(const [key2, value2] of Object.entries(value))
                 {
-                  if(key2 === "import"
-                  || key2 === "require"
-                  || key2 === "node-addons"
-                  || key2 === "default") {
+                  if(conditions.indexOf(key) !== -1
+                  || key2 === "node-addons") {
                     targetFilePath = value2;
                     break
                   }
@@ -185,10 +185,8 @@ module.exports = (request, options) => {
               else
                 for(const [key2, value2] of Object.entries(value))
                 {
-                  if(key2 === "import"
-                  || key2 === "require"
-                  || key2 === "node"
-                  || key2 === "default") {
+                  if(conditions.indexOf(key) !== -1
+                  || key2 === "node") {
                     targetFilePath = value2;
                     break
                   }
@@ -202,8 +200,7 @@ module.exports = (request, options) => {
                 targetFilePath = value;
               else
                 for(const [key2, value2] of Object.entries(value))
-                  if(key2 === "import"
-                  || key2 === "require"
+                  if(conditions.indexOf(key2) !== -1
                   || key2 === "node"
                   || key2 === "node-addons") {
                     targetFilePath = value2;
