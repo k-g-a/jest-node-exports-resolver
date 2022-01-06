@@ -146,7 +146,7 @@ module.exports = (request, options) => {
         else if (exportValue !== null && typeof exportValue === "object")
           for(const [key, value] of Object.entries(exportValue))
           {
-            if (conditions.indexOf(key) !== -1) {
+            if (conditions.includes(key)) {
               if (typeof value === "string")
                 targetFilePath = value;
               else
