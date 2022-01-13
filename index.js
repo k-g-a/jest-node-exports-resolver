@@ -83,6 +83,8 @@ function getPackageJson(packageName) {
 }
 
 module.exports = (request, options) => {
+  const {conditions, defaultResolver} = options;
+
   let packageName = "";
   let submoduleName = "";
 
@@ -142,77 +144,26 @@ module.exports = (request, options) => {
             : exportValue;
 
         else if (exportValue !== null && typeof exportValue === "object")
-          for(const [key, value] of Object.entries(exportValue))
+        {
+          function resolveExport(exportValue, prevKeys)
           {
-            if (key === "import" || key === "require") {
-              if (typeof value === "string")
-                targetFilePath = value;
-              else
-              for(const [key2, value2] of Object.entries(value))
-              {
-                if(key2 === "node"
-                || key2 === "node-addons"
-                || key2 === "default") {
-                  targetFilePath = value2;
-                  break
-                }
+            for(const [key, value] of Object.entries(exportValue))
+            {
+              // Duplicated nested conditions are undefined behaviour (and
+              // probably a format error or spec loop-hole), abort and delegate
+              // to Jest default resolver
+              if(prevKeys.includes(key)) return
+
+              if (conditions.includes(key)) {
+                if (typeof value === "string") return value
+
+                return resolveExport(value, prevKeys.concat(key));
               }
-
-              break
-            }
-
-            if (key === "node") {
-              if (typeof value === "string")
-                targetFilePath = value;
-              else
-                for(const [key2, value2] of Object.entries(value))
-                {
-                  if(key2 === "import"
-                  || key2 === "require"
-                  || key2 === "node-addons"
-                  || key2 === "default") {
-                    targetFilePath = value2;
-                    break
-                  }
-                }
-
-              break
-            }
-
-            if (key === "node-addons") {
-              if (typeof value === "string")
-                targetFilePath = value;
-              else
-                for(const [key2, value2] of Object.entries(value))
-                {
-                  if(key2 === "import"
-                  || key2 === "require"
-                  || key2 === "node"
-                  || key2 === "default") {
-                    targetFilePath = value2;
-                    break
-                  }
-                }
-
-              break
-            }
-
-            if (key === "default") {
-              if (typeof value === "string")
-                targetFilePath = value;
-              else
-                for(const [key2, value2] of Object.entries(value))
-                  if(key2 === "import"
-                  || key2 === "require"
-                  || key2 === "node"
-                  || key2 === "node-addons") {
-                    targetFilePath = value2;
-                    break
-                  }
-
-              break
             }
           }
+
+          targetFilePath = resolveExport(exportValue, []);
+        }
       }
 
       if (targetFilePath) {
@@ -221,5 +172,5 @@ module.exports = (request, options) => {
     }
   }
 
-  return options.defaultResolver(request, options);
+  return defaultResolver(request, options);
 };
