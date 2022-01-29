@@ -89,9 +89,6 @@ function getPackageJson(packageName) {
 module.exports = (request, options) => {
   const {conditions, defaultResolver} = options;
 
-  let packageName = "";
-  let submoduleName = "";
-
   // NOTE: jest-sequencer is a special prefixed jest request
   const isNodeModuleRequest =
   !(
@@ -104,74 +101,78 @@ module.exports = (request, options) => {
     const pkgPathParts = request.split("/");
     const {length} = pkgPathParts;
 
+    let packageName;
+    let submoduleName;
+
     if (!request.startsWith("@")) {
-      if(length > 1)
-      {
-        packageName = pkgPathParts[0];
-        submoduleName = `./${pkgPathParts.slice(1).join("/")}`;
+      packageName = pkgPathParts.shift();
+      submoduleName = length > 1 ? `./${pkgPathParts.join("/")}` : ".";
+    } else if (length >= 2) {
+      packageName = `${pkgPathParts.shift()}/${pkgPathParts.shift()}`;
+      submoduleName = length > 2 ? `./${pkgPathParts.join("/")}` : ".";
+    }
+
+    if (packageName && submoduleName) {
+      const selfReferencePath = getSelfReferencePath(packageName);
+      if(selfReferencePath) packageName = selfReferencePath
+
+      const packageJson = getPackageJson(packageName);
+
+      if (!packageJson) {
+        console.error(`Failed to find package.json for ${packageName}`);
       }
-    } else if (length > 2) {
-      packageName = pkgPathParts.slice(0, 2).join("/");
-      submoduleName = `./${pkgPathParts.slice(2).join("/")}`;
-    }
-  }
 
-  if (packageName && submoduleName) {
-    const selfReferencePath = getSelfReferencePath(packageName);
-    if(selfReferencePath) packageName = selfReferencePath
+      const {exports} = packageJson || {};
+      if(exports)
+      {
+        let targetFilePath;
 
-    const packageJson = getPackageJson(packageName);
+        if(typeof exports === "string")
+          targetFilePath = exports;
 
-    if (!packageJson) {
-      console.error(`Failed to find package.json for ${packageName}`);
-    }
+        else if (Object.keys(exports).every((k) => k.startsWith("."))) {
+          const [exportKey, exportValue] = Object.entries(exports)
+          .find(([k]) => {
+            if (k === submoduleName) return true;
+            if (k.endsWith('*')) return submoduleName.startsWith(k.slice(0, -1))
 
-    const {exports} = packageJson || {};
-    if(exports)
-    {
-      let targetFilePath;
+            return false;
+          }) || [];
 
-      if(typeof exports === "string")
-        targetFilePath = exports;
+          if (typeof exportValue === "string")
+            targetFilePath = exportKey.endsWith('*')
+              ? exportValue.replace(
+                /\*/, submoduleName.slice(exportKey.length - 1)
+              )
+              : exportValue;
 
-      else if (Object.keys(exports).every((k) => k.startsWith("."))) {
-        const [exportKey, exportValue] = Object.entries(exports).find(([k]) => {
-          if (k === submoduleName) return true;
-          if (k.endsWith('*')) return submoduleName.startsWith(k.slice(0, -1));
-
-          return false;
-        }) || [];
-
-        if (typeof exportValue === "string")
-          targetFilePath = exportKey.endsWith('*')
-            ? exportValue.replace(/\*/, submoduleName.slice(exportKey.length - 1))
-            : exportValue;
-
-        else if (exportValue !== null && typeof exportValue === "object")
-        {
-          function resolveExport(exportValue, prevKeys)
-          {
-            for(const [key, value] of Object.entries(exportValue))
+          else if (
+            conditions && exportValue != null && typeof exportValue === "object"
+          ){
+            function resolveExport(exportValue, prevKeys)
             {
-              // Duplicated nested conditions are undefined behaviour (and
-              // probably a format error or spec loop-hole), abort and delegate
-              // to Jest default resolver
-              if(prevKeys.includes(key)) return
+              for(const [key, value] of Object.entries(exportValue))
+              {
+                // Duplicated nested conditions are undefined behaviour (and
+                // probably a format error or spec loop-hole), abort and
+                // delegate to Jest default resolver
+                if(prevKeys.includes(key)) return
 
-              if (conditions.includes(key)) {
+                if (!conditions.includes(key)) continue
+
                 if (typeof value === "string") return value
 
                 return resolveExport(value, prevKeys.concat(key));
               }
             }
+
+            targetFilePath = resolveExport(exportValue, []);
           }
-
-          targetFilePath = resolveExport(exportValue, []);
         }
-      }
 
-      if (targetFilePath) {
-        request = targetFilePath.replace("./", `${packageName}/`);
+        if (targetFilePath) {
+          request = targetFilePath.replace("./", `${packageName}/`);
+        }
       }
     }
   }
