@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const resolve = require('resolve/sync')
 
 function findMainPackageJson(entryPath, packageName) {
   entryPath = entryPath.replace(/\//g, path.sep);
@@ -38,11 +39,11 @@ function getSelfReferencePath(packageName) {
   }
 }
 
-function getPackageJson(packageName) {
+function getPackageJson(packageName, basedir) {
   // Require `package.json` from the package, both from exported `exports` field
   // in ESM packages, or directly from the file itself in CommonJS packages.
   try {
-    return require(`${packageName}/package.json`);
+    return require(resolve(`${packageName}/package.json`, { basedir }));
   } catch (requireError) {
     if (requireError.code === "MODULE_NOT_FOUND") {
       throw requireError;
@@ -116,7 +117,7 @@ module.exports = (request, options) => {
       const selfReferencePath = getSelfReferencePath(packageName);
       if(selfReferencePath) packageName = selfReferencePath
 
-      const packageJson = getPackageJson(packageName);
+      const packageJson = getPackageJson(packageName, options.basedir);
 
       if (!packageJson) {
         console.error(`Failed to find package.json for ${packageName}`);
