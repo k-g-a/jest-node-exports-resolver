@@ -93,7 +93,7 @@ module.exports = (request, options) => {
   const isNodeModuleRequest =
   !(
     request.startsWith(".") ||
-    request.startsWith("/") ||
+    path.isAbsolute(request) ||
     request.startsWith("jest-sequencer")
   );
 
