@@ -45,7 +45,7 @@ function getPackageJson(packageName) {
     return require(`${packageName}/package.json`);
   } catch (requireError) {
     if (requireError.code === "MODULE_NOT_FOUND") {
-      throw requireError;
+      return console.error(`Unable to find package.json for ${packageName}`);
     }
     if (requireError.code !== "ERR_PACKAGE_PATH_NOT_EXPORTED") {
       return console.error(
