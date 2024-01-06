@@ -1,4 +1,8 @@
-# Custom Jest resolver with node exports package entry points support
+# Archived
+
+This package is no longer needed since jest 29, so there is no need in active maintenence.
+
+## Custom Jest resolver with node exports package entry points support
 
 This package aims to bring [node exports package entry points](https://nodejs.org/api/packages.html#packages_package_entry_points) support to [Jest](https://github.com/facebook/jest), i.e.:
 ```javascript
